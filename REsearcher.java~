@@ -1,0 +1,212 @@
+//Name: Lan Niu   ID: 1320386
+//Name: Shizhen Wang  ID: 1240171
+
+ 
+import java.util.ArrayList;
+import java.io.*;
+
+public class REsearcher{
+	public static ArrayList<String> chars;    //hold the input-symbol
+	public static ArrayList<Integer> state1;  //hold the first possible state
+	public static ArrayList<Integer> state2;  //hold the second possible state
+	public static boolean mathced = false;
+	public static void main(String[] args) throws IOException{
+		chars = new ArrayList<String>();   
+		state1 = new ArrayList<Integer>();
+		state2 = new ArrayList<Integer>();
+		if(args.length != 1){   //check the arguments
+			System.err.println("The output for FSM and a Text file are needed for REsearch class!");
+			return;
+		}
+
+		generateFSM();    //create the FSM
+		
+		BufferedReader brText = new BufferedReader(new FileReader(args[0]));
+		String line;
+		while((line = brText.readLine()) != null)  //read the file that is going to be searched
+			checkLine(chars, state1, state2, line);
+		if(!mathced)    //output "No result" if no match found
+			System.err.println("No result!");
+		
+	}
+	/*
+	*initialise the deque, put the scan and the start state into deque
+	*search string from the first letter.
+	*/
+	private static void checkLine(ArrayList<String> chars, ArrayList<Integer> state1, 
+			ArrayList<Integer> state2, String st){
+		Deque<Integer> deque;
+		for(int i = 0; i < st.length(); i ++){
+			deque = new Deque<Integer>();
+			deque.pushTail(null);        //put a scan into daque
+			deque.pushTail(state1.get(0));  // put first state into the deque
+			boolean sucess = checkCharacter(chars, state1, state2, st, deque, i); // Check the substring
+			if (sucess) {  			// Output the result, change the boolean matched to true
+				System.out.println(st);
+				mathced = true;
+				break;
+			}
+		}
+		
+	}
+	/*
+	*check characters in string starts from each position
+	*/
+	private static boolean checkCharacter(ArrayList<String> chars, ArrayList<Integer> state1, 
+			ArrayList<Integer> state2, String st, Deque<Integer> deque, int i){
+		for(int offset = 0; i + offset < st.length(); offset++){  //start with the first char
+			String ch = st.substring(i + offset, i + offset + 1);
+			while(true){
+				Integer state = deque.popTail(); //get the next possible state
+				if(state == null){            //if state in null there is no next possible state
+					if(!deque.isEmpty())
+						deque.pushHead(null);    //put scan back to the deque
+					break;
+				}
+				if(state.equals(chars.size() -1))return true;
+				else if(chars.get(state).equals(" ")){        //add next two possible states, and check if reaches the final state
+					if(state1.get(state).equals(chars.size() -1)
+						 || state2.get(state).equals(chars.size() -1))return true;
+					deque.pushTail(state1.get(state));
+					deque.pushTail(state2.get(state));
+				}else if(chars.get(state).equals(".")){
+					//put the next possible state of the matched state to deque, 
+					//then check the if the next possible state of the current state is the final state
+					if(!checkSpecialChar(ch)){
+						if(state1.get(state).equals(chars.size() -1))return true;
+						deque.pushHead(state1.get(state));
+					}
+				}else if(chars.get(state).equals(ch)){
+					//put the next possible state of the matched state to deque, 
+					//then check the if the next possible state of the current state is the final state
+					if(state1.get(state).equals(chars.size() -1))return true;
+					deque.pushHead(state1.get(state));
+				}
+			}
+			if(deque.isEmpty())
+				return false;
+		}
+		/*
+		*Handle the final branch, when reaches the final character
+		*and the current state is a branch state.
+		*/
+		while(true){
+			Integer state = deque.popTail();
+			if(state == null){
+				if(deque.isEmpty()) return false;
+				else deque.pushTail(null);
+			}if(chars.get(state).equals(" ")){
+				if(state1.get(state).equals(chars.size() -1) || 
+						state2.get(state).equals(chars.size() -1))return true;
+				else{
+					deque.pushTail(state1.get(state));
+					deque.pushTail(state2.get(state));
+				}
+			}
+		}
+	}
+	/*
+	 * generate the FSM accroding the output of the complier
+	 * read each line, split it then put them into appropriate list
+	 */
+	private static void generateFSM() throws IOException{
+		File f= new File("output.fsm");
+		BufferedReader br = new BufferedReader(new FileReader(f));
+		String line;
+		while ((line = br.readLine()) != null){
+			if(line.split(",").length != 4)
+				throw new ArrayIndexOutOfBoundsException("Setup failed: Wrong output from complier!");
+			chars.add(line.split(",")[1]);
+			state1.add(Integer.parseInt(line.split(",")[2]));
+			state2.add(Integer.parseInt(line.split(",")[3]));
+		}
+	}
+	/*
+	*check if dealing with the symbols
+	*/
+	private static boolean checkSpecialChar(String character){
+		if (character.equals("*") || character.equals("^")
+				|| character.equals("?") || character.equals(".")
+				|| character.equals("\\") || character.equals("[")
+				|| character.equals("]") || character.equals("(")
+				|| character.equals(")") || character.equals("|")){
+			return true;
+		}
+		return false;
+	}
+static class Deque<T>{
+	Node<T> head;
+	Node<T> tail;
+	
+	private class Node<T>{
+		T data;
+		Node<T> left;
+		Node<T> right;
+		
+		public Node(T d){
+			this.data = d;
+		}
+		public T get(){
+			return data;
+		}
+		public void setLeft(Node<T> l){
+			this.left = l;
+		}
+		public void setRight(Node<T> r){
+			this.right = r;
+		}
+		public Node<T> getLeft(){
+			return left;
+		}
+		public Node<T> getRight(){
+			return right;
+		}
+	}
+	/*
+	 * Add data to the tail
+	 */
+	public void pushTail(T d){
+		if(tail == null){   //check if it is empty
+			tail = new Node<T>(d);
+			head = tail;
+		}else{
+			tail.setRight(new Node<T>(d));
+			tail.getRight().setLeft(tail);
+			tail = tail.getRight();
+		}
+	}
+	/*
+	 * Remove data from tail
+	 */
+	public T popTail(){
+		if(tail == null) //check if it is empty
+			throw new RuntimeException("The deque is empty."); 
+		else{
+			T v = tail.get();
+			tail = tail.getLeft();
+			if(tail == null) head = null;
+			else tail.setRight(null);
+			return v;
+		}
+	}
+	/*
+	 * Add data to head
+	 */
+	public void pushHead(T d){
+		if(head == null){   //check if it is empty
+			head = new Node<T>(d);
+			tail = head;
+		}else{
+			head.setLeft(new Node<T>(d));
+			head.getLeft().setRight(head);
+			head = head.getLeft();
+		}
+	}
+	/*
+	 * check if the deque is empty
+	 */
+	public boolean isEmpty(){
+		return head == null;
+	}
+}
+}
